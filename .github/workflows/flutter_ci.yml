@@ -1,0 +1,27 @@
+name: Trigger Remote Build Server
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+          repository: zmsp/flutter-web-build-engine
+          event-type: trigger-build
+          client-payload: |
+            {
+              "source_repo": "${{ github.repository }}",
+              "target_repo": "zmsp/notecards",
+              "site_url": "https://promptly.shahadat.us/",
+              "base_href": "/",
+              "ref": "${{ github.ref }}",
+              "sha": "${{ github.sha }}"
+            }
