@@ -1,4 +1,4 @@
-package io.github.zmsp.notecards
+package io.github.zmsp.promptly
 
 import io.flutter.embedding.android.FlutterActivity
 

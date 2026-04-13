@@ -1,16 +1,41 @@
-# notecards
+# Promptly: The Simple Teleprompter
 
-Teleprompter app
+A professional, easy-to-use teleprompter app for speakers, singers, and content creators.
+
+## Features
+
+- **Smooth Auto-Scrolling**: Adjustable speed to match your natural pace.
+- **Rich Text Support**: Supports singer tags (e.g., `[Chorus]`) with automatic color highlighting.
+- **Video Recording**: Record yourself while prompting to capture your performance.
+- **Camera Preview**: See yourself in a small overlay while you read.
+- **Customizable**: Change font size, colors, and more to suit your needs.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter SDK (>= 3.2.0)
+- Android/iOS/Web development environment
 
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
+### Running locally
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter run
+```
+
+### Building for production
+
+#### Web
+```bash
+flutter build web
+```
+
+#### Android
+```bash
+flutter build apk --release
+```
+
+#### iOS
+```bash
+flutter build ios --release
+```
