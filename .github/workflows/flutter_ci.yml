@@ -20,8 +20,6 @@ jobs:
             {
               "source_repo": "${{ github.repository }}",
               "target_repo": "zmsp/notecards",
-              "site_url": "https://promptly.shahadat.us/",
-              "base_href": "/",
               "ref": "${{ github.ref }}",
               "sha": "${{ github.sha }}"
             }
