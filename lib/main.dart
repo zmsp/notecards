@@ -6,16 +6,12 @@ import 'package:camera/camera.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 List<CameraDescription> globalCameras = [];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    globalCameras = await availableCameras();
-  } catch (e) {
-    debugPrint("Failed to load cameras: $e");
-  }
   runApp(const PromptlyApp());
 }
 
@@ -42,8 +38,8 @@ class TeleprompterSettings {
     return {
       'fontSize': fontSize,
       'scrollSpeed': scrollSpeed,
-      'textColor': textColor.value,
-      'backgroundColor': backgroundColor.value,
+      'textColor': textColor.toARGB32(),
+      'backgroundColor': backgroundColor.toARGB32(),
       'showFocusLine': showFocusLine,
       'showCameraPreview': showCameraPreview,
       'recordVideo': recordVideo,
@@ -54,8 +50,8 @@ class TeleprompterSettings {
     return TeleprompterSettings(
       fontSize: (map['fontSize'] as num?)?.toDouble() ?? 48.0,
       scrollSpeed: map['scrollSpeed'] ?? 4,
-      textColor: Color(map['textColor'] ?? Colors.black.value),
-      backgroundColor: Color(map['backgroundColor'] ?? const Color(0xFFF9F9F9).value),
+      textColor: Color(map['textColor'] ?? Colors.black.toARGB32()),
+      backgroundColor: Color(map['backgroundColor'] ?? const Color(0xFFF9F9F9).toARGB32()),
       showFocusLine: map['showFocusLine'] ?? true,
       showCameraPreview: map['showCameraPreview'] ?? false,
       recordVideo: map['recordVideo'] ?? false,
@@ -526,6 +522,12 @@ class _PrompterScreenState extends State<PrompterScreen> with SingleTickerProvid
   bool _isRecording = false;
   XFile? _recordedVideoFile;
 
+  // Camera preview position and size
+  Offset _cameraPosition = const Offset(0, 0);
+  double _cameraWidth = 160.0;
+  double _cameraHeight = 120.0;
+  bool _isInitializedPosition = false;
+
   @override
   void initState() {
     super.initState();
@@ -540,8 +542,19 @@ class _PrompterScreenState extends State<PrompterScreen> with SingleTickerProvid
 
   void _initCameraIfNeeded() async {
     bool needsCamera = _settings.showCameraPreview || _settings.recordVideo;
-    if (needsCamera && globalCameras.isNotEmpty) {
+    if (needsCamera) {
       if (_cameraController != null) return; // already init
+
+      if (globalCameras.isEmpty) {
+        try {
+          globalCameras = await availableCameras();
+        } catch (e) {
+          debugPrint("Failed to load cameras: $e");
+          return;
+        }
+      }
+
+      if (globalCameras.isEmpty) return;
 
       CameraDescription? frontCam;
       try {
@@ -941,31 +954,82 @@ class _PrompterScreenState extends State<PrompterScreen> with SingleTickerProvid
                 ),
               ),
 
-            // Camera popup preview
+            // Camera popup preview (Draggable and Resizable)
             if (_settings.showCameraPreview && _isCameraReady && _cameraController != null)
-              Positioned(
-                bottom: 20,
-                right: 20,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 140,
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.black54, blurRadius: 16, offset: Offset(0, 8))
+              Builder(
+                builder: (context) {
+                  final screenSize = MediaQuery.of(context).size;
+                  if (!_isInitializedPosition) {
+                    _cameraPosition = Offset(
+                      screenSize.width - _cameraWidth - 20,
+                      screenSize.height - _cameraHeight - 120, // Avoid bottom controls
+                    );
+                    _isInitializedPosition = true;
+                  }
+
+                  return Positioned(
+                    left: _cameraPosition.dx.clamp(0.0, (screenSize.width - _cameraWidth).clamp(0.0, screenSize.width)),
+                    top: _cameraPosition.dy.clamp(0.0, (screenSize.height - _cameraHeight).clamp(0.0, screenSize.height)),
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onPanUpdate: (details) {
+                            setState(() {
+                              _cameraPosition += details.delta;
+                            });
+                          },
+                          child: Container(
+                            width: _cameraWidth,
+                            height: _cameraHeight,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black54, blurRadius: 16, offset: Offset(0, 8))
+                              ],
+                              border: Border.all(color: Colors.white24, width: 2),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.rotationY(3.14159), // Mirror selfie preview horizontally
+                              child: AspectRatio(
+                                aspectRatio: _cameraController!.value.aspectRatio,
+                                child: CameraPreview(_cameraController!),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Resize handle
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onPanUpdate: (details) {
+                              setState(() {
+                                _cameraWidth = (_cameraWidth + details.delta.dx).clamp(100.0, screenSize.width - 40);
+                                _cameraHeight = (_cameraHeight + details.delta.dy).clamp(80.0, screenSize.height - 40);
+                              });
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  bottomRight: Radius.circular(16),
+                                ),
+                              ),
+                              child: const Icon(Icons.open_in_full, size: 18, color: Colors.white),
+                            ),
+                          ),
+                        ),
                       ],
-                      border: Border.all(color: Colors.white24, width: 2),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.rotationY(3.14159), // Mirror selfie preview horizontally
-                      child: CameraPreview(_cameraController!),
-                    ),
-                  ),
-                ),
+                  );
+                },
               ),
 
             // Controls overlay
@@ -1079,13 +1143,18 @@ class _VideoPreviewScreenState extends State<VideoPreviewScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.file(widget.file)
-      ..initialize().then((_) {
-        setState(() {
-          _initialized = true;
-        });
-        _controller.play();
+    if (kIsWeb) {
+      _controller = VideoPlayerController.networkUrl(Uri.parse(widget.file.path));
+    } else {
+      _controller = VideoPlayerController.file(widget.file);
+    }
+    
+    _controller.initialize().then((_) {
+      setState(() {
+        _initialized = true;
       });
+      _controller.play();
+    });
   }
 
   @override
